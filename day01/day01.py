@@ -4,10 +4,15 @@ def part1(depths):
 
 
 def part2(depths):
-    return sum(
-        sum(depths[i:i+3]) < sum(depths[i+1:i+4])
-        for i in range(len(depths) - 3)
-    )
+    """
+    Comparing sliding 3-window
+        (a + b + c) < (b + c + d)
+    we can cancel out
+        b + c
+    which leaves us with
+        a < d
+    """
+    return sum(depths[i] > depths[i-3] for i in range(3, len(depths)))
 
 
 def main():

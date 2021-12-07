@@ -9,4 +9,4 @@
 # /f/{x+=$2}/n/{y+=$2}/u/{y-=$2}END{print x*y}
 
 # both parts, code golf (57 chars)
-/f/{x+=$2;y+=a*$2}/n/{a+=$2}/u/{a-=$2}END{print x*a,x*y}
+/f/{x+=$2;y+=a*$2}/u/{a-=$2}/n/{a+=$2}END{print x*a,x*y}

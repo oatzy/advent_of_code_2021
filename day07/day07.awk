@@ -1,18 +1,16 @@
 #!/usr/bin/env -S awk -f
 
-# BEGIN{FS=","}
+# BEGIN{RS=","}
 # {
-#     for(i=1;i<=NF;i++){
-#         a[i]=$i;
-#         m=$i>m?$i:m
-#     }
+#     a[NR]=$1;
+#     m=$1>m?$1:m
 # } END {
-#     t=NF*m;
-#     u=t*(m+1)/2;
-#     for(;j<=m;j++){
-#         y=0;z=0;
+#     t=NR*m;
+#     u=t*m;
+#     for(;x<m;x++){
+#         y=z=0;
 #         for(k in a){
-#             d=j>a[k]?j-a[k]:a[k]-j;
+#             d=x-a[k];d=d<0?-d:d;
 #             y+=d;z+=d*(d+1)/2}
 #         t=y<t?y:t;
 #         u=z<u?z:u
@@ -20,5 +18,5 @@
 #     print t,u
 # }
 
-# 183 chars
-BEGIN{FS=","}{for(i=1;i<=NF;i++){a[i]=$i;m=$i>m?$i:m}}END{t=NF*m;u=t*(m+1)/2;for(;j<=m;j++){y=0;z=0;for(k in a){d=j>a[k]?j-a[k]:a[k]-j;y+=d;z+=d*(d+1)/2}t=y<t?y:t;u=z<u?z:u}print t,u}
+# 152 chars
+BEGIN{RS=","}{a[NR]=$1;m=$1>m?$1:m}END{t=NR*m;u=t*m;for(;x<m;x++){y=z=0;for(k in a){d=x-a[k];d=d<0?-d:d;y+=d;z+=d*(d+1)/2}t=y<t?y:t;u=z<u?z:u}print t,u}

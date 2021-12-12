@@ -26,46 +26,55 @@ def load_data(path):
     return graph
 
 
-def count_paths(graph, node, visited):
+def cached_count(fn):
+    # can't use functools cache_lru because some params are unhashable
+    # so hand-roll a bespoke version
+    cache = {}
+
+    def inner(graph, node, visited, max_visits=1):
+        # dict keys must be hashable
+        key = (tuple(graph.keys()), node, tuple(visited.items()), max_visits)
+
+        if key not in cache:
+            count = fn(graph, node, visited, max_visits)
+            cache[key] = count
+
+        return cache[key]
+
+    return inner
+
+
+@cached_count
+def _count_paths(graph, node, visited, max_visits=1):
     if node == 'END':
         return 1
 
-    neighbours = [
-        n for n in graph[node]
-        if n.isupper() or n not in visited
-    ]
-
-    paths = 0
-    for n in neighbours:
-        paths += count_paths(graph, n, {n, *visited})
-
-    return paths
-
-
-def part1(graph):
-    return count_paths(graph, 'START', set())
-
-
-def count_paths_with_revisit(graph, node, visited):
-    if node == 'END':
-        return 1
-
-    can_revisit = not any(v == 2 for v in visited.values())
+    can_revisit = not any(v == max_visits for v in visited.values())
 
     paths = 0
     for n in graph[node]:
+
         if n.isupper():
-            paths += count_paths_with_revisit(graph, n, visited)
+            paths += _count_paths(graph, n, visited, max_visits)
+
         elif visited[n] == 0 or can_revisit:
             v = visited.copy()
             v[n] += 1
-            paths += count_paths_with_revisit(graph, n, v)
+            paths += _count_paths(graph, n, v, max_visits)
 
     return paths
 
 
+def count_paths(graph, max_visits=1):
+    return _count_paths(graph, 'START', Counter(), max_visits=max_visits)
+
+
+def part1(graph):
+    return count_paths(graph)
+
+
 def part2(graph):
-    return count_paths_with_revisit(graph, 'START', Counter())
+    return count_paths(graph, max_visits=2)
 
 
 def main():

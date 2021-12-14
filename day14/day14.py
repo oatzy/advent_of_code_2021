@@ -1,4 +1,4 @@
-from collections import Counter, deque
+from collections import Counter
 from dataclasses import dataclass
 from typing import Dict
 
@@ -19,92 +19,59 @@ def load_data(path):
     )
 
 
-def polymerise(template, rules):
-    new = []
+def cached(fn):
+    cache = {}
+
+    def inner(cur, rules, count):
+        # rules isn't hashable
+        # but doesn't need including since it doesn't change
+        if (cur, count) not in cache:
+            cache[(cur, count)] = fn(cur, rules, count)
+        return cache[(cur, count)]
+
+    return inner
+
+
+@cached
+def iterate(cur, rules, count):
+    # recursive: f(XY) -> f(XM) + f(MY) - M
+    if count == 0:
+        return Counter(cur)
+
+    mid = rules[cur]
+    left = iterate(cur[0]+mid, rules, count-1)
+    right = iterate(mid+cur[1], rules, count-1)
+
+    ret = left + right
+    # remove overlap
+    ret[mid] -= 1
+
+    return ret
+
+
+def polymerise(template, rules, count):
+    total = Counter()
+
     for i in range(len(template)-1):
-        new.append(template[i])
-        new.append(rules[template[i:i+2]])
-    new.append(template[-1])
+        total += iterate(template[i:i+2], rules, count)
+        # remove overlap
+        total[template[i+1]] -= 1
 
-    return ''.join(new)
+    # re-add last since it doesn't overlap
+    total[template[-1]] += 1
 
-
-def perform(data, steps):
-    template = data.template
-
-    for t in range(steps):
-        # print(t)
-        template = polymerise(template, data.rules)
-
-    counts = [c[1] for c in Counter(template).most_common()]
-
-    return counts[0] - counts[-1]
+    return total
 
 
-def polymerise_deque(template, rules):
-    d = template
-    length = len(template)
-
-    for _ in range(length-1):
-        x = rules[f"{d[0]}{d[1]}"]
-        d.rotate(-1)
-        d.append(x)
-
-    d.rotate(-1)
-
-    return d
-
-
-def perform_deque(data, steps):
-    template = deque(data.template)
-
-    for t in range(steps):
-        # print(t)
-        template = polymerise_deque(template, data.rules)
-        counts = Counter(template).most_common()
-        print(counts[0], counts[-1])
-
-    counts = [c[1] for c in Counter(template).most_common()]
-
-    return counts[0] - counts[-1]
-
-
-@dataclass
-class Node:
-    value: str
-    next: int
-
-
-def polymerise_linked_list(template, rules):
-    cur = template[0]
-
-    while cur.next is not None:
-        next = cur.next
-
-        x = rules[f"{cur.value}{template[cur.next].value}"]
-        template.append(Node(x, next))
-        cur.next = len(template) - 1
-
-        cur = template[next]
-
-    return template
-
-
-def perform_linked_list(data, steps):
-    template = [Node(x, i+1) for i, x in enumerate(data.template)]
-    template[-1].next = None
-
-    for t in range(steps):
-        print(t)
-        template = polymerise_linked_list(template, data.rules)
-
-    counts = [c[1] for c in Counter(n.value for n in template).most_common()]
+def perform(data, count):
+    c = polymerise(data.template, data.rules, count)
+    counts = [i[1] for i in c.most_common()]
 
     return counts[0] - counts[-1]
 
 
 def part1(data):
-    return perform_deque(data, 20)
+    return perform(data, 10)
 
 
 def part2(data):
@@ -114,7 +81,7 @@ def part2(data):
 def main():
     data = load_data('input.txt')
     print(part1(data))
-    # print(part2(data))
+    print(part2(data))
 
 
 if __name__ == '__main__':

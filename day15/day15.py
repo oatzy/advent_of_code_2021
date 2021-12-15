@@ -70,9 +70,7 @@ def expand(graph, multiplier):
             y0 = y % endy
 
             d = x // endx + y // endy
-            new = graph.nodes[(x0, y0)] + d
-            if new > 9:
-                new %= 9
+            new = (graph.nodes[(x0, y0)] + d) % 9 or 9
 
             nodes[(x, y)] = new
 

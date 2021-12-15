@@ -31,34 +31,6 @@ def neighbours(node):
 
 
 def dijkstra(nodes, start, end):
-    visited = set()
-    distances = {n: None for n in nodes}
-    distances[start] = 0
-
-    cur = start
-
-    while cur != end:
-        visited.add(cur)
-
-        to_check = [
-            n for n in neighbours(cur)
-            if n in distances and n not in visited
-        ]
-
-        for n in to_check:
-            tentative = nodes[n] + distances[cur]
-            if distances[n] is None or tentative < distances[n]:
-                distances[n] = tentative
-
-        cur = min(
-            (d, n) for n, d in distances.items()
-            if d is not None and n not in visited
-        )[1]
-
-    return distances[end]
-
-
-def dijkstra_queue(nodes, start, end):
     distances = {n: None for n in nodes}
     distances[start] = 0
 
@@ -85,12 +57,35 @@ def dijkstra_queue(nodes, start, end):
     return distances[end]
 
 
+def expand(graph, multiplier):
+    endx, endy = graph.end[0] + 1, graph.end[1] + 1
+    maxx, maxy = (multiplier * endx - 1), (multiplier * endy - 1)
+
+    nodes = {}
+
+    for x in range(maxx + 1):
+        for y in range(maxy + 1):
+
+            x0 = x % endx
+            y0 = y % endy
+
+            d = x // endx + y // endy
+            new = graph.nodes[(x0, y0)] + d
+            if new > 9:
+                new %= 9
+
+            nodes[(x, y)] = new
+
+    return Graph(nodes, (0, 0), (maxx, maxy))
+
+
 def part1(graph):
     return dijkstra(graph.nodes, graph.start, graph.end)
 
 
-def part2(data):
-    pass
+def part2(graph):
+    graph = expand(graph, 5)
+    return dijkstra(graph.nodes, graph.start, graph.end)
 
 
 def main():
@@ -111,5 +106,8 @@ class Test:
     def test_part1(self):
         assert part1(self.data) == 40
 
+    def test_expand(self):
+        assert expand(self.data, 5) == load_data('test-expect.txt')
+
     def test_part2(self):
-        assert part2(self.data) == None
+        assert part2(self.data) == 315

@@ -25,7 +25,7 @@ class Operator(Packet):
 
 def hex2bin(s):
     b = bin(int(f"0x{s}", 16))[2:]
-    padding = (4 - len(b) % 4) % 4
+    padding = (8 - len(b) % 8) % 8
     return '0' * padding + b
 
 
@@ -226,9 +226,7 @@ class Test:
 
     def test_part2(self):
         assert part2("C200B40A82") == 3
-        # this one fails. there's a parse error somewhere
-        # but it doesn't stop the real input giving the correct answer
-        #assert part2("04005AC33890") == 54
+        assert part2("04005AC33890") == 54
         assert part2("880086C3E88112") == 7
         assert part2("CE00C43D881120") == 9
         assert part2("D8005AC2A8F0") == 1

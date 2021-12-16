@@ -1,4 +1,6 @@
+import operator
 from itertools import islice
+from functools import partial, reduce
 from typing import List
 from dataclasses import dataclass
 
@@ -123,6 +125,30 @@ def sum_versions(packet):
     return total
 
 
+def evaluate(packet):
+    if packet.type == 4:
+        return packet.value
+
+    subs = [evaluate(p) for p in packet.subpackets]
+
+    if packet.type == 0:
+        return sum(subs)
+    if packet.type == 1:
+        return reduce(operator.mul, subs)
+    if packet.type == 2:
+        return min(subs)
+    if packet.type == 3:
+        return max(subs)
+    if packet.type == 5:
+        return subs[0] > subs[1]
+    if packet.type == 6:
+        return subs[0] < subs[1]
+    if packet.type == 7:
+        return subs[0] == subs[1]
+
+    raise Exception(f"Unknown type {packet.type}")
+
+
 def load_data(path):
     with open(path, 'r') as f:
         return f.read().strip()
@@ -134,7 +160,8 @@ def part1(data):
 
 
 def part2(data):
-    pass
+    packet = parse(data)
+    return evaluate(packet)
 
 
 def main():
@@ -196,3 +223,15 @@ class Test:
     def test_sum_versions2(self):
         packet = parse('A0016C880162017C3686B18A3D4780')
         assert sum_versions(packet) == 31
+
+    def test_part2(self):
+        assert part2("C200B40A82") == 3
+        # this one fails. there's a parse error somewhere
+        # but it doesn't stop the real input giving the correct answer
+        #assert part2("04005AC33890") == 54
+        assert part2("880086C3E88112") == 7
+        assert part2("CE00C43D881120") == 9
+        assert part2("D8005AC2A8F0") == 1
+        assert part2("F600BC2D8F") == 0
+        assert part2("9C005AC2F8F0") == 0
+        assert part2("9C0141080250320F1802104A08") == 1

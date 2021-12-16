@@ -1,6 +1,6 @@
 import operator
 from itertools import islice
-from functools import partial, reduce
+from functools import reduce
 from typing import List
 from dataclasses import dataclass
 
@@ -23,10 +23,13 @@ class Operator(Packet):
     subpackets: List[Packet]
 
 
+def _hex2bin(c):
+    b = bin(int(f"0x{c}", 16))[2:]
+    return f"{b:0>4}"
+
+
 def hex2bin(s):
-    b = bin(int(f"0x{s}", 16))[2:]
-    padding = (8 - len(b) % 8) % 8
-    return '0' * padding + b
+    return "".join(_hex2bin(c) for c in s)
 
 
 def bin2int(s):

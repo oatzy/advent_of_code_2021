@@ -1,4 +1,6 @@
 from ast import literal_eval
+from copy import deepcopy
+from itertools import permutations
 
 
 def load_data(path):
@@ -98,12 +100,17 @@ def magnitude(number):
 
 
 def part1(data):
-    total = snail_sum(data)
+    total = snail_sum(deepcopy(data))
     return magnitude(total)
 
 
 def part2(data):
-    pass
+    magnitudes = []
+    for a, b in permutations(data, 2):
+        magnitudes.append(
+            magnitude(add(deepcopy(a), deepcopy(b)))
+        )
+    return max(magnitudes)
 
 
 def main():
@@ -205,4 +212,4 @@ class Test:
         assert part1(load_data('test.txt')) == 4140
 
     def test_part2(self):
-        assert part2(load_data('test.txt')) == None
+        assert part2(load_data('test.txt')) == 3993

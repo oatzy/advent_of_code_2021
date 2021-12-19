@@ -1,3 +1,5 @@
+from queue import Queue
+
 
 def load_data(path):
     scanners = []
@@ -78,20 +80,22 @@ def get_alignment(scanners):
     found = {0: ref}
     offsets = [(0, 0, 0)]
 
-    while len(found) != len(scanners):
-        # print(list(found))
+    to_check = Queue()
+    to_check.put(ref)
+
+    while not to_check.empty():
+        check = to_check.get()
+
         for i, s in enumerate(scanners):
             if i in found:
                 continue
 
-            for j, f in found.items():
-                overlap, offset = try_overlap(f, s)
-                if overlap is None:
-                    continue
-                found[i] = overlap
-                offsets.append(offset)
-                #print(f"scanner {j} overlaps scanner {i} at {offset}")
-                break
+            overlap, offset = try_overlap(check, s)
+            if overlap is None:
+                continue
+            found[i] = overlap
+            offsets.append(offset)
+            to_check.put(overlap)
 
     return list(found.values()), offsets
 

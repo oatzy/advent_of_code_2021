@@ -1,5 +1,3 @@
-from math import sqrt
-
 
 def load_data(path):
     scanners = []
@@ -16,23 +14,9 @@ def load_data(path):
     return scanners
 
 
-def rotate(p):
-    return (p[1], p[2], p[0])
-
-
-def flipx(p):
-    return (-p[0], p[1], p[2])
-
-
-def flipy(p):
-    return (p[0], -p[1], p[2])
-
-
-def flipz(p):
-    return (p[0], p[1], -p[2])
-
-
 def rotators():
+    # there's a way to do this with matricies and the like
+    # but I ended up just hand-enumerating them
     yield lambda p: p
     yield lambda p: (p[2], p[1], -p[0])
     yield lambda p: (-p[0], p[1], -p[2])
@@ -68,78 +52,74 @@ def relative_to(ref, p):
     return (p[0] - ref[0], p[1] - ref[1], p[2] - ref[2])
 
 
-def centers(ps):
-    for p in ps:
-        yield [relative_to(p, q) for q in ps]
-
-
-def variants(ps):
-    for r in rotations(ps):
-        yield from centers(r)
-
-
-def move_to(p, ps):
-    q = min(ps)
-    delta = relative_to(p, q)
-    return [relative_to(delta, q) for q in ps]
-
-
 def is_overlap(s1, s2):
     return len(set(s1).intersection(s2)) >= 12
 
 
 def try_overlap(ref, scanner):
+    # for every rotation, try aligning each point
+    # against each point of reference
+    # until we get an overlap
+    #
+    # given how slow this process is
+    # I have to assume there's a quicker way
     for r in rotations(scanner):
         for p in ref:
             for q in r:
                 delta = relative_to(p, q)
                 aligned = [relative_to(delta, t) for t in r]
                 if is_overlap(ref, aligned):
-                    return aligned
-    return None
+                    return aligned, delta
+    return None, None
 
 
-def find_orientations(scanners):
+def get_alignment(scanners):
     ref = scanners[0]
     found = {0: ref}
+    offsets = [(0, 0, 0)]
 
-    # find the rest
     while len(found) != len(scanners):
-        print(list(found))
+        # print(list(found))
         for i, s in enumerate(scanners):
             if i in found:
                 continue
 
             for j, f in found.items():
-                overlap = try_overlap(f, s)
+                overlap, offset = try_overlap(f, s)
                 if overlap is None:
                     continue
                 found[i] = overlap
-                print(f"scanner {j} overlaps scanner {i}")
+                offsets.append(offset)
+                #print(f"scanner {j} overlaps scanner {i} at {offset}")
                 break
 
-    print(list(found))
-    assert len(found) == len(scanners)
-    # print(found)
-
-    return list(found.values())
+    return list(found.values()), offsets
 
 
-def part1(data):
+def part1(orientations):
     unique = set()
-    for beacon in find_orientations(data):
+    for beacon in orientations:
         unique.update(beacon)
     return len(unique)
 
 
-def part2(data):
-    pass
+def distance(a, b):
+    return abs(a[0]-b[0]) + abs(a[1] - b[1]) + abs(a[2] - b[2])
+
+
+def part2(offsets):
+    distances = []
+    for a in offsets:
+        for b in offsets:
+            distances.append(distance(a, b))
+    return max(distances)
 
 
 def main():
     data = load_data('input.txt')
-    print(part1(data))
-    print(part2(data))
+    orientations, offsets = get_alignment(data)
+    print(part1(orientations))
+    print(part2(offsets))
 
 
 if __name__ == '__main__':
@@ -148,11 +128,12 @@ if __name__ == '__main__':
 
 class Test:
 
-    def setup_method(self):
+    def setup_class(self):
         self.data = load_data('test.txt')
+        self.orientations, self.offsets = get_alignment(self.data)
 
     def test_part1(self):
-        assert part1(self.data) == 79
+        assert part1(self.orientations) == 79
 
     def test_part2(self):
-        assert part2(self.data) == None
+        assert part2(self.offsets) == 3621

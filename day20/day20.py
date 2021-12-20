@@ -3,6 +3,8 @@ from dataclasses import dataclass
 
 Point = Tuple[int, int]
 
+PADDING = 50
+
 
 @dataclass
 class Scan:
@@ -39,24 +41,42 @@ def kernel(image, p):
 def enhance(scan):
     new = set()
 
-    for x in range(scan.tl[0] - 3, scan.br[0] + 4):
-        for y in range(scan.tl[1] - 3, scan.br[1] + 4):
+    for x in range(scan.tl[0], scan.br[0] + 1):
+        for y in range(scan.tl[1], scan.br[1] + 1):
             if scan.algorithm[kernel(scan.image, (x, y))] == '#':
                 new.add((x, y))
 
+    return Scan(new, scan.algorithm, scan.tl, scan.br)
+
+
+def expand(scan, size):
     return Scan(
-        new, scan.algorithm,
-        (scan.tl[0] - 1, scan.tl[1] - 1),
-        (scan.br[0] + 1, scan.br[1] + 1),
+        scan.image, scan.algorithm,
+        (-2*size, -2*size),
+        (scan.br[1]+2*size, scan.br[1]+2*size)
     )
 
 
+def crop_padding(scan, padding):
+    tl = (scan.tl[0]+padding, scan.tl[1]+padding)
+    br = (scan.br[0]-padding, scan.br[1]-padding)
+    image = set(
+        (x, y) for x, y in scan.image
+        if tl[0] <= x <= br[0] and tl[1] <= y <= br[1]
+    )
+    return Scan(image, scan.algorithm, tl, br)
+
+
+def enhance_by(scan, size):
+    scan = expand(scan, size)
+    for _ in range(size):
+        scan = enhance(scan)
+    scan = crop_padding(scan, size)
+    return scan
+
+
 def illuminated(scan):
-    total = 0
-    for y in range(scan.tl[1], scan.br[1]+1):
-        for x in range(scan.tl[0], scan.br[0]+1):
-            total += (x, y) in scan.image
-    return total
+    return len(scan.image)
 
 
 def print_image(scan):
@@ -70,14 +90,13 @@ def print_image(scan):
 
 
 def part1(scan):
-    scan = enhance(scan)
-    # print_image(scan)
-    scan = enhance(scan)
+    scan = enhance_by(scan, 2)
     return illuminated(scan)
 
 
-def part2(data):
-    pass
+def part2(scan):
+    scan = enhance_by(scan, 50)
+    return illuminated(scan)
 
 
 def main():
@@ -99,4 +118,4 @@ class Test:
         assert part1(self.data) == 35
 
     def test_part2(self):
-        assert part2(self.data) == None
+        assert part2(self.data) == 3351

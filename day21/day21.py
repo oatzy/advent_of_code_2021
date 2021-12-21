@@ -1,4 +1,6 @@
+from collections import Counter
 from dataclasses import dataclass, field
+from functools import lru_cache
 
 BOARD_SIZE = 10
 
@@ -33,11 +35,12 @@ class Game:
     player1: Player
     player2: Player
     die: Die = field(default_factory=Die)
+    target: int = 1000
 
     def is_over(self) -> bool:
         return (
-            self.player1.score >= 1000 or
-            self.player2.score >= 1000
+            self.player1.score >= self.target or
+            self.player2.score >= self.target
         )
 
     @classmethod
@@ -69,8 +72,49 @@ def part1(game) -> int:
     return game.die.rolls * min(game.player1.score, game.player2.score)
 
 
-def part2(data):
-    pass
+def _rolls():
+    for i in range(1, 4):
+        for j in range(1, 4):
+            for k in range(1, 4):
+                yield i+j+k
+
+
+DIRAC_ROLLS = list(Counter(_rolls()).items())
+
+
+@lru_cache()
+def step(p, n):
+    pos, score = p
+    pos = (pos + n) % BOARD_SIZE or BOARD_SIZE
+    return (pos, score + pos)
+
+
+@lru_cache()
+def dirac_roll(p1, p2):
+    w1, w2 = 0, 0
+
+    for r, c in DIRAC_ROLLS:
+        pn = step(p1, r)
+
+        if pn[1] >= 21:
+            a, b = (1, 0)
+
+        else:
+            # swap current player
+            b, a = dirac_roll(p2, pn)
+
+        w1 += c*a
+        w2 += c*b
+
+    return w1, w2
+
+
+def part2(game):
+    s1, s2 = dirac_roll(
+        (game.player1.position, 0),
+        (game.player2.position, 0)
+    )
+    return max(s1, s2)
 
 
 def main():
@@ -92,4 +136,4 @@ class Test:
         assert part1(self.data) == 739785
 
     def test_part2(self):
-        assert part2(self.data) == None
+        assert part2(self.data) == 444356092776315

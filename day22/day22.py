@@ -29,6 +29,12 @@ class Instruction:
 
         return cubes
 
+    def cubes(self):
+        for i in range(self.x[0], self.x[1]+1):
+            for j in range(self.y[0], self.y[1]+1):
+                for k in range(self.z[0], self.z[1]+1):
+                    yield (i, j, k)
+
     def in_range(self, p):
         return (
             self.x[0] <= p[0] <= self.x[1] and
@@ -89,14 +95,75 @@ def part1_alt(instructions):
     return total
 
 
-def part2(data):
-    pass
+def get_max_range(instructions):
+    minx = maxx = miny = maxy = minz = maxz = None
+
+    for i in instructions:
+        if minx is None or minx > i.x[0]:
+            minx = i.x[0]
+        if maxx is None or maxx < i.x[1]:
+            maxx = i.x[1]
+        if miny is None or miny > i.y[0]:
+            miny = i.y[0]
+        if maxy is None or maxy < i.y[1]:
+            maxy = i.y[1]
+        if minz is None or minz > i.z[0]:
+            minz = i.z[0]
+        if maxz is None or maxz < i.z[1]:
+            maxz = i.z[1]
+
+    return (minx, maxx), (miny, maxy), (minz, maxz)
+
+
+def part2(instructions):
+    x, y, z = get_max_range(instructions)
+
+    total = 0
+
+    instructions = instructions[::-1]
+
+    for i in range(x[0], x[1]+1):
+        for j in range(y[0], y[1]+1):
+            for k in range(z[0], z[1]+1):
+                for n in instructions:
+                    if n.in_range((i, j, k)):
+                        total += n.mode
+                        break
+
+    return total
+
+
+def part2_alt(instructions):
+    total = 0
+    instructions = instructions[::-1]
+
+    for i, n in enumerate(instructions):
+        if not n.mode:
+            continue
+        for p in n.cubes():
+            for m in instructions[:i]:
+                if m.in_range(p):
+                    break
+            else:
+                total += 1
+
+    return total
+
+
+def part2_dumb(instructions):
+    s = set()
+    for i in instructions:
+        if i.mode:
+            s.update(i.cubes())
+        else:
+            s.difference_update(i.cubes())
+    return len(s)
 
 
 def main():
-    data = load_data('input.txt')
-    print(part1(data))
-    print(part2(data))
+    data = load_data('test.txt')
+    # print(part1(data))
+    print(part2_alt(data))
 
 
 if __name__ == '__main__':
@@ -104,6 +171,8 @@ if __name__ == '__main__':
 
 
 class Test:
+
+    import pytest
 
     def setup_method(self):
         self.data = load_data('test.txt')
@@ -115,5 +184,10 @@ class Test:
     def test_part1(self):
         assert part1(self.data) == 590784
 
+    def test_part2_small(self):
+        data = load_data('test-small.txt')
+        assert part2_alt(data) == 39
+
+    @pytest.mark.skip("not yet")
     def test_part2(self):
         assert part2(self.data) == None

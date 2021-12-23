@@ -29,17 +29,11 @@ class Instruction:
 
         return cubes
 
-    def cubes(self):
-        for i in range(self.x[0], self.x[1]+1):
-            for j in range(self.y[0], self.y[1]+1):
-                for k in range(self.z[0], self.z[1]+1):
-                    yield (i, j, k)
-
-    def in_range(self, p):
+    def size(self):
         return (
-            self.x[0] <= p[0] <= self.x[1] and
-            self.y[0] <= p[1] <= self.y[1] and
-            self.z[0] <= p[2] <= self.z[1]
+            (self.x[1] - self.x[0] + 1) *
+            (self.y[1] - self.y[0] + 1) *
+            (self.z[1] - self.z[0] + 1)
         )
 
 
@@ -77,93 +71,51 @@ def part1(instructions):
     return len(cubes)
 
 
-def part1_alt(instructions):
-    # for curiosity's sake
-    # works, but slower than sets
-    total = 0
+def find_overlap(a, b):
+    xlow = max(a.x[0], b.x[0])
+    xhigh = min(a.x[1], b.x[1])
+    if xhigh < xlow:
+        return None
 
-    instructions = instructions[::-1]
+    ylow = max(a.y[0], b.y[0])
+    yhigh = min(a.y[1], b.y[1])
+    if yhigh < ylow:
+        return None
 
-    for x in range(-50, 51):
-        for y in range(-50, 51):
-            for z in range(-50, 51):
-                for i in instructions:
-                    if i.in_range((x, y, z)):
-                        total += i.mode
-                        break
+    zlow = max(a.z[0], b.z[0])
+    zhigh = min(a.z[1], b.z[1])
+    if zhigh < zlow:
+        return None
 
-    return total
-
-
-def get_max_range(instructions):
-    minx = maxx = miny = maxy = minz = maxz = None
-
-    for i in instructions:
-        if minx is None or minx > i.x[0]:
-            minx = i.x[0]
-        if maxx is None or maxx < i.x[1]:
-            maxx = i.x[1]
-        if miny is None or miny > i.y[0]:
-            miny = i.y[0]
-        if maxy is None or maxy < i.y[1]:
-            maxy = i.y[1]
-        if minz is None or minz > i.z[0]:
-            minz = i.z[0]
-        if maxz is None or maxz < i.z[1]:
-            maxz = i.z[1]
-
-    return (minx, maxx), (miny, maxy), (minz, maxz)
+    return Instruction(
+        not a.mode,
+        (xlow, xhigh),
+        (ylow, yhigh),
+        (zlow, zhigh),
+    )
 
 
 def part2(instructions):
-    x, y, z = get_max_range(instructions)
+    atoms = [instructions[0]]
 
-    total = 0
+    for n in instructions[1:]:
+        new = []
+        for a in atoms:
+            new.append(a)
+            overlap = find_overlap(a, n)
+            if overlap is not None:
+                new.append(overlap)
+        if n.mode:
+            new.append(n)
+        atoms = new
 
-    instructions = instructions[::-1]
-
-    for i in range(x[0], x[1]+1):
-        for j in range(y[0], y[1]+1):
-            for k in range(z[0], z[1]+1):
-                for n in instructions:
-                    if n.in_range((i, j, k)):
-                        total += n.mode
-                        break
-
-    return total
-
-
-def part2_alt(instructions):
-    total = 0
-    instructions = instructions[::-1]
-
-    for i, n in enumerate(instructions):
-        if not n.mode:
-            continue
-        for p in n.cubes():
-            for m in instructions[:i]:
-                if m.in_range(p):
-                    break
-            else:
-                total += 1
-
-    return total
-
-
-def part2_dumb(instructions):
-    s = set()
-    for i in instructions:
-        if i.mode:
-            s.update(i.cubes())
-        else:
-            s.difference_update(i.cubes())
-    return len(s)
+    return sum(n.size() if n.mode else -n.size() for n in atoms)
 
 
 def main():
-    data = load_data('test.txt')
-    # print(part1(data))
-    print(part2_alt(data))
+    data = load_data('input.txt')
+    print(part1(data))
+    print(part2(data))
 
 
 if __name__ == '__main__':
@@ -174,20 +126,16 @@ class Test:
 
     import pytest
 
-    def setup_method(self):
-        self.data = load_data('test.txt')
-
     def test_part1_small(self):
         data = load_data('test-small.txt')
         assert part1(data) == 39
 
     def test_part1(self):
-        assert part1(self.data) == 590784
+        assert part1(load_data('test.txt')) == 590784
 
     def test_part2_small(self):
         data = load_data('test-small.txt')
-        assert part2_alt(data) == 39
+        assert part2(data) == 39
 
-    @pytest.mark.skip("not yet")
     def test_part2(self):
-        assert part2(self.data) == None
+        assert part2(load_data('test2.txt')) == 2758514936282235

@@ -1,147 +1,173 @@
+from queue import PriorityQueue
 
-ENERGY = {'A': 1, 'B': 10, 'C': 100, 'D': 1000}
 
-HOMES = {
-    1: ((3, 2), (3, 3)),
-    10: ((5, 2), (5, 3)),
-    100: ((7, 2), (7, 3)),
-    1000: ((9, 2), (9, 3)),
-}
+def can_enter_home(homes, t):
+    home = homes[t-1]
+    return all(i == t for i in home)
 
-MOVES = {
-    (1, 1): ((2, 1),),
-    (2, 1): ((1, 1), (3, 2), (4, 1)),
-    (4, 1): ((2, 1), (3, 2), (5, 2), (6, 1)),
-    (6, 1): ((4, 1), (5, 2), (7, 2), (8, 1)),
-    (8, 1): ((6, 1), (7, 2), (9, 2), (10, 1)),
-    (10, 1): ((8, 1), (9, 2), (11, 1)),
-    (11, 1): ((10, 1),),
-    (3, 2): ((2, 1), (4, 1), (3, 3)),
-    (3, 3): ((3, 2),),
-    (5, 2): ((4, 1), (6, 1), (5, 3)),
-    (5, 3): ((5, 2),),
-    (7, 2): ((6, 1), (8, 1), (7, 3)),
-    (7, 3): ((7, 2),),
-    (9, 2): ((8, 1), (10, 1), (9, 3)),
-    (9, 3): ((9, 2),),
-}
+
+def is_blocked(corridor, cur, home):
+    if cur <= home:
+        return any(corridor[j] for j in range(cur+1, home+1))
+    else:
+        return any(corridor[j] for j in range(home+1, cur))
+
+
+def possible_moves(corridor, i):
+    j = i + 1
+    while j < len(corridor) and not corridor[j]:
+        yield j
+        j += 1
+
+    while i >= 0 and not corridor[i]:
+        yield i
+        i -= 1
+
+
+def step_size(corridor, home):
+    if corridor == 0:
+        return step_size(1, home) + 1
+    if corridor == 6:
+        return step_size(5, home) + 1
+    h = 2 * home
+    c = 2 * corridor - 1
+    return abs(h-c)
+
+
+def neighbours(state):
+    depth = state[0]
+    homes = state[1:-1]
+    corridor = state[-1]
+
+    for h, home in enumerate(homes, 1):
+        if all(t == h for t in home):
+            # all the crabs are in the right place
+            continue
+
+        candidate = home[-1]
+
+        for c in possible_moves(corridor, h):
+            new_state = (
+                (depth,) +
+                homes[:h-1] + (home[:-1],) + homes[h:] +
+                (corridor[:c] + (candidate,) + corridor[c+1:],)
+            )
+            step = depth - len(home) + 1 + step_size(c, h)
+            yield new_state, step * 10**(candidate-1)
+
+    for c, t in enumerate(corridor):
+        if not t:
+            # empty square
+            continue
+
+        if can_enter_home(homes, t) and not is_blocked(corridor, c, t):
+            new_state = (
+                (depth,) +
+                homes[:t-1] + (homes[t-1] + (t,),) + homes[t:] +
+                (corridor[:c] + (0,) + corridor[c+1:],)
+            )
+            step = depth - len(homes[t-1]) + step_size(c, t)
+            yield new_state, step * 10**(t-1)
+
+
+def print_state(s):
+    c = {0: '.', 1: 'A', 2: 'B', 3: 'C', 4: 'D'}
+
+    depth = s[0]
+    rooms = [{i: c[n] for i, n in enumerate(r)} for r in s[1:-1]]
+    corridor = c[s[-1][0]] + '.'.join(c[i] for i in s[-1][1:-1]) + c[s[-1][-1]]
+
+    print('#############')
+    print(f'#{corridor}#')
+    for i in range(depth-1, 0, -1):
+        r1 = '#'.join(r.get(i, '.') for r in rooms)
+        print(f'###{r1}###')
+    print('  #########')
+
+
+def print_path(path, end):
+    p = []
+    cur = end
+    while cur is not None:
+        p.append(cur)
+        cur = path[cur]
+    for s in p[::-1]:
+        print_state(s)
+        print()
+
+
+def is_final_state(state):
+    rooms = state[1:-1]
+    if any(state[-1]):
+        return False
+    for t, r in enumerate(rooms, 1):
+        if not all(i == t for i in r):
+            return False
+    return True
+
+
+def find_minimum_energy(start):
+    # a dijkstra based approach
+    distances = {start: 0}
+
+    q = PriorityQueue()
+    q.put([0, start])
+    path = {start: None}
+
+    while not q.empty():
+        dist, cur = q.get()
+        if cur in distances and distances[cur] < dist:
+            continue
+
+        for n, size in neighbours(cur):
+
+            tentative = size + distances[cur]
+            if n not in distances or tentative < distances[n]:
+                distances[n] = tentative
+                path[n] = cur
+                q.put([tentative, n])
+
+        if is_final_state(cur):
+            return distances[cur]
+
+    raise Exception("No solution was found")
+
+
+def _split_line(l):
+    c = {'A': 1, 'B': 2, 'C': 3, 'D': 4}
+    return [c[i] for i in l.strip(' #').split('#')]
 
 
 def load_data(path):
-    id = 0
-
-    crabs = []
-
     with open(path, 'r') as f:
-        for y, line in enumerate(f):
-            for x, c in enumerate(line.rstrip()):
+        lines = f.read().splitlines()
 
-                if c in ENERGY:
-                    # crab = (id, energy, pos)
-                    crabs.append((id, ENERGY[c], (x, y)))
-                    id += 1
+    homes = tuple(zip(*[_split_line(l) for l in lines[3:1:-1]]))
 
-    return tuple(crabs)
+    # (depth, (home1), (home2), (home3), (home4), (corridor))
+    return (len(homes[0]),) + homes + ((0,) * 7,)
 
 
-def game_over(crabs):
-    return all(c[2] in HOMES[c[1]] for c in crabs)
+def expand(state):
+    #D#C#B#A#
+    #D#B#A#C#
+    return (
+        4,
+        (state[1][0], 4, 4, state[1][1]),
+        (state[2][0], 2, 3, state[2][1]),
+        (state[3][0], 1, 2, state[3][1]),
+        (state[4][0], 3, 1, state[4][1]),
+        state[-1],
+    )
 
 
-def occupied(crabs, p):
-    for c in crabs:
-        if c[2] == p:
-            return c
-    return None
+def part1(state):
+    return find_minimum_energy(state)
 
 
-def home_of(p):
-    for t, h in HOMES.items():
-        if p in h:
-            return t
-    return None
-
-
-def step_size(p, q):
-    return abs(p[0]-q[0])+abs(p[1]-q[1])
-
-
-def possible_moves(crab, crabs):
-    homes = HOMES[crab[1]]
-
-    home_base = occupied(crabs, homes[1])
-    if home_base == crab:
-        return
-
-    same_base_type = home_base is not None and home_base[1] == crab[1]
-
-    if crab[2] == homes[0] and same_base_type:
-        return
-
-    for n in MOVES[crab[2]]:
-
-        if occupied(crabs, n):
-            continue
-
-        h = home_of(n)
-        g = home_of(crab[2])
-
-        # moving from corridor to home
-        if h is not None and g is None:
-
-            if h != crab[1]:
-                # can't enter another type's home
-                continue
-
-            # if different type already in home
-            if home_base is not None and home_base[1] != crab[1]:
-                continue
-
-        yield n, step_size(n, crab[2])
-
-
-def path_finder(crabs, seen, energy=0, depth=0):
-    if game_over(crabs):
-        print(f"game over {energy}")
-        return energy
-
-    if crabs in seen:
-        # backtrack
-        # print(f"seen {crabs}")
-        return None
-
-    if depth >= 50:
-        # give up, avoid max recursion
-        return None
-
-    seen.add(crabs)
-
-    min_move = None
-
-    for i, crab in enumerate(crabs):
-        for move, step in possible_moves(crab, crabs):
-            #print(crab, move)
-            next_state = (
-                crabs[:i] + ((crab[0], crab[1], move),) + crabs[i+1:]
-            )
-            d = path_finder(next_state, seen, energy+step * crab[1], depth+1)
-
-            if d is None:
-                # deadend
-                continue
-
-            if min_move is None or d < min_move:
-                min_move = d
-
-    return min_move
-
-
-def part1(crabs):
-    return path_finder(crabs, set())
-
-
-def part2(data):
-    pass
+def part2(state):
+    state = expand(state)
+    return find_minimum_energy(state)
 
 
 def main():
@@ -159,16 +185,8 @@ class Test:
     def setup_method(self):
         self.data = load_data('test.txt')
 
-    def test_game_over(self):
-        crabs = []
-        for t, ps in HOMES.items():
-            for p in ps:
-                crabs.append((0, t, p))
-        assert game_over(tuple(crabs))
-
     def test_part1(self):
-        # print(self.data)
         assert part1(self.data) == 12521
 
     def test_part2(self):
-        assert part2(self.data) == None
+        assert part2(self.data) == 44169
